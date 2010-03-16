@@ -4,14 +4,24 @@ class WpPost < ActiveRecord::Base
   establish_connection "wordpress"
   set_table_name 'wp_posts'
   set_primary_key 'ID'
-  
+
   belongs_to :author, :class_name => 'WpUser', :foreign_key => 'post_author'
   belongs_to :parent, :class_name => 'WpPost', :foreign_key => 'post_parent'
-  has_many :wp_post2cats, :foreign_key => 'post_id'
-  has_many :categories, :through => :wp_post2cats, :source => :wp_category
-  has_many :wp_post2tags, :foreign_key => 'post_id'
-  has_many :meta_tags, :through => :wp_post2tags, :source => :wp_tag
-  
+  has_many :wp_term_relationships, :foreign_key => 'object_id'
+  has_many :wp_term_taxonomies, :through => :wp_term_relationships, :source => :wp_term_taxonomy
+
+  def meta_tags
+    self.wp_term_taxonomies.select{|t|t.taxonomy == 'post_tag'}.map{|t|
+      t.wp_term
+    }
+  end
+
+  def categories
+    self.wp_term_taxonomies.select{|t|t.taxonomy == 'category'}.map{|t|
+      t.wp_term
+    }
+  end
+
   def self.move_to_radiant
     # this map could be better
     wp_failed = []
@@ -48,8 +58,8 @@ class WpPost < ActiveRecord::Base
       if @radiant_page.save && @radiant_page.valid?
         @radiant_page.parts.create(:name => 'body', :content => post.post_content, :filter_id => 'Textile')
         @radiant_page.parts.create(:name => 'excerpt', :content => post.post_excerpt, :filter_id => 'Textile') unless post.post_excerpt.blank?
-        meta_tags = post.meta_tags.collect {|t| t.tag}
-        categories = post.categories.collect {|c| c.cat_name }
+        meta_tags = post.meta_tags.collect {|t| t.name}
+        categories = post.categories.collect {|c| c.name }
         all_tags = meta_tags + categories
         @radiant_page.tag_with(all_tags.join(MetaTag::DELIMITER))
       else
@@ -62,5 +72,5 @@ class WpPost < ActiveRecord::Base
     puts @radiant_page.inspect
     puts @radiant_page.parts.inspect
   end
-  
+
 end
