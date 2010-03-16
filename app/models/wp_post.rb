@@ -26,13 +26,13 @@ class WpPost < ActiveRecord::Base
     # this map could be better
     wp_failed = []
     wp_status_map = {'publish' => 100, 'draft' => 1, 'future' => 1, 'inherit' => 101}
-    @home = Page.find_by_slug('/')
+    @parent = Page.find_by_class_name('ArchivePage') || Page.find_by_slug('/')
     WpPost.find(:all, :conditions => ['post_type = ?','post']).each do |post|
       unless @radiant_author = User.find_by_login(post.author.user_login)
         @radiant_author = User.find_by_login(post.author.user_nicename)
       end
       @radiant_page = Page.find_by_slug(post.post_name) || Page.find_by_slug(post.post_name.to_s.slugify[0..99]) || Page.new
-      @radiant_page[:parent_id] = @home.id
+      @radiant_page[:parent_id] = @parent.id
       if !post.post_title.blank?
         title = post.post_title.to_s[0..99]
       elsif !post.post_name.blank?
